@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <Content Include="domains.txt" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="native\README.md" Link="native\README.md" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="native\WinDivert.dll" Link="native\WinDivert.dll" CopyToOutputDirectory="PreserveNewest" Condition="Exists('native\WinDivert.dll')" />
+    <Content Include="native\WinDivert64.sys" Link="native\WinDivert64.sys" CopyToOutputDirectory="PreserveNewest" Condition="Exists('native\WinDivert64.sys')" />
+  </ItemGroup>
+</Project>
