@@ -31,6 +31,8 @@ internal static class BonnyCli
             "germany-reconnect" => GermanyTunnel.Reconnect(),
             "germany-disconnect" => GermanyTunnel.Disconnect(),
             "germany-status" => GermanyTunnel.Status(),
+            "germany-autostart-enable" => GermanyTunnel.EnableAutoStart(),
+            "germany-autostart-disable" => GermanyTunnel.DisableAutoStart(),
             "diagnose" => await RunNetworkDiagnosticsAsync(),
             "adblock" => OpenFirefoxAdBlockPage(),
             _ => UnknownCommand(command)
@@ -467,7 +469,7 @@ internal static class BonnyCli
     {
         Console.WriteLine("Bonny DPI — управление из командной строки");
         Console.WriteLine();
-        Console.WriteLine("Использование: Run-Bonny.cmd [menu|start|setup|check|diagnose|adblock|update-media-sites|germany|germany-connect|germany-reconnect|germany-disconnect|germany-status|help]");
+        Console.WriteLine("Использование: Run-Bonny.cmd [menu|start|setup|check|diagnose|adblock|update-media-sites|germany|germany-connect|germany-reconnect|germany-disconnect|germany-status|germany-autostart-enable|germany-autostart-disable|help]");
         Console.WriteLine("  menu   Открыть интерактивное меню CMD.");
         Console.WriteLine("  start  Run-Bonny.cmd запросит права администратора, проверит компоненты и запустит обработчик.");
         Console.WriteLine("  setup  Скачать и проверить официальные файлы WinDivert.");
@@ -477,6 +479,8 @@ internal static class BonnyCli
         Console.WriteLine("  update-media-sites Обновить домены из списка заблокированных СМИ в Википедии.");
         Console.WriteLine("  germany Открыть настройки немецкого WireGuard-туннеля.");
         Console.WriteLine("  germany-reconnect Перезапустить выбранный профиль WireGuard.");
+        Console.WriteLine("  germany-autostart-enable Включить автоподключение WireGuard при запуске Windows.");
+        Console.WriteLine("  germany-autostart-disable Выключить автоподключение WireGuard.");
         Console.WriteLine("  help   Показать эту справку.");
         Console.WriteLine();
         Console.WriteLine("Для выхода из работающего обработчика нажмите Ctrl+C.");

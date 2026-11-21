@@ -9,6 +9,7 @@ internal static class GermanyTunnel
     private static readonly string ConfigDirectory = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Bonny");
     private static readonly string ActiveProfilePath = Path.Combine(ConfigDirectory, "SelectedWireGuardProfile.txt");
+    private static readonly string AutoStartProfilePath = Path.Combine(ConfigDirectory, "AutoStartWireGuardProfile.txt");
 
     public static int RunMenu()
     {
@@ -24,6 +25,8 @@ internal static class GermanyTunnel
             Console.WriteLine("  4. Переподключиться");
             Console.WriteLine("  5. Отключиться");
             Console.WriteLine("  6. Проверить состояние");
+            Console.WriteLine("  7. Включить автоподключение при запуске Windows");
+            Console.WriteLine("  8. Выключить автоподключение");
             Console.WriteLine("  0. Назад");
             Console.Write("Выбор: ");
 
@@ -46,6 +49,12 @@ internal static class GermanyTunnel
                     break;
                 case "6":
                     _ = Status();
+                    break;
+                case "7":
+                    _ = EnableAutoStart();
+                    break;
+                case "8":
+                    _ = DisableAutoStart();
                     break;
                 case "0":
                 case null:
@@ -89,6 +98,17 @@ internal static class GermanyTunnel
         if (!IsAdministrator())
             return RunElevated("germany-connect");
 
+        string? autoStartProfile;
+        try
+        {
+            autoStartProfile = ReadAutoStartProfile();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+        {
+            Console.Error.WriteLine("Не удалось прочитать настройку автоподключения: " + ex.GetBaseException().Message);
+            return 1;
+        }
+
         if (AnyOtherTunnelRunning(profileName))
         {
             Console.WriteLine("Сначала отключите другой профиль Bonny WireGuard.");
@@ -99,6 +119,12 @@ internal static class GermanyTunnel
         var state = QueryServiceState(profileName);
         if (state == ServiceState.Running)
         {
+            var runningStartupMode = string.Equals(autoStartProfile, profileName, StringComparison.OrdinalIgnoreCase)
+                ? "auto"
+                : "demand";
+            var configureResult = ConfigureStartupMode(serviceName, runningStartupMode);
+            if (configureResult != 0)
+                return configureResult;
             Console.WriteLine("Профиль " + profileName + " уже подключён.");
             return 0;
         }
@@ -119,14 +145,12 @@ internal static class GermanyTunnel
             return 1;
         }
 
-        // Keep the optional tunnel manual before starting any previously installed service.
-        var startup = RunSc("config", serviceName, "start=", "demand");
-        if (startup.ExitCode != 0)
-        {
-            Console.Error.WriteLine("Не удалось перевести службу туннеля в ручной режим запуска Windows.");
-            WriteProcessOutput(startup.Output);
-            return startup.ExitCode;
-        }
+        var startupMode = string.Equals(autoStartProfile, profileName, StringComparison.OrdinalIgnoreCase)
+            ? "auto"
+            : "demand";
+        var startupResult = ConfigureStartupMode(serviceName, startupMode);
+        if (startupResult != 0)
+            return startupResult;
 
         if (state == ServiceState.Stopped)
         {
@@ -147,6 +171,139 @@ internal static class GermanyTunnel
 
         Console.WriteLine("Служба туннеля " + profileName + " запущена.");
         Console.WriteLine("Это ещё не подтверждает handshake или немецкую страну выхода; используйте диагностику сети.");
+        return 0;
+    }
+
+    public static int EnableAutoStart()
+    {
+        var profileName = GetActiveProfileName();
+        if (profileName is null)
+        {
+            Console.WriteLine("Сначала импортируйте и выберите профиль WireGuard в меню Германии.");
+            return 1;
+        }
+
+        string? existingAutoStartProfile;
+        try
+        {
+            existingAutoStartProfile = ReadAutoStartProfile();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+        {
+            Console.Error.WriteLine("Не удалось прочитать настройку автоподключения: " + ex.GetBaseException().Message);
+            return 1;
+        }
+
+        if (existingAutoStartProfile is not null &&
+            !string.Equals(existingAutoStartProfile, profileName, StringComparison.OrdinalIgnoreCase))
+        {
+            Console.WriteLine("Сначала выключите автоподключение другого профиля WireGuard.");
+            return 1;
+        }
+
+        if (!IsAdministrator())
+            return RunElevated("germany-autostart-enable");
+
+        var connectResult = Connect();
+        if (connectResult != 0)
+            return connectResult;
+
+        var serviceName = ServiceNameFor(profileName);
+        var startup = RunSc("config", serviceName, "start=", "auto");
+        if (startup.ExitCode != 0)
+        {
+            Console.Error.WriteLine("Не удалось включить автозапуск службы WireGuard.");
+            WriteProcessOutput(startup.Output);
+            return startup.ExitCode;
+        }
+
+        var recovery = RunSc("failure", serviceName, "reset=", "86400", "actions=", "restart/5000/restart/15000/restart/60000");
+        if (recovery.ExitCode != 0)
+        {
+            Console.Error.WriteLine("Не удалось настроить восстановление службы WireGuard после сбоя.");
+            WriteProcessOutput(recovery.Output);
+            RestoreManualServiceMode(serviceName);
+            return recovery.ExitCode;
+        }
+
+        if (!string.Equals(existingAutoStartProfile, profileName, StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                Directory.CreateDirectory(ConfigDirectory);
+                File.WriteAllText(AutoStartProfilePath, profileName, new UTF8Encoding(false));
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                Console.Error.WriteLine("Не удалось сохранить настройку автоподключения: " + ex.GetBaseException().Message);
+                RestoreManualServiceMode(serviceName);
+                return 1;
+            }
+        }
+
+        Console.WriteLine("Автоподключение профиля " + profileName + " включено. Windows будет запускать туннель при загрузке.");
+        Console.WriteLine("Если служба аварийно завершится, Windows попробует перезапустить её.");
+        Console.WriteLine("Kill switch не включён: при недоступности туннеля интернет может идти напрямую.");
+        return 0;
+    }
+
+    public static int DisableAutoStart()
+    {
+        string? profileName;
+        try
+        {
+            profileName = ReadAutoStartProfile();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+        {
+            Console.Error.WriteLine("Не удалось прочитать настройку автоподключения: " + ex.GetBaseException().Message);
+            return 1;
+        }
+
+        if (profileName is null)
+        {
+            Console.WriteLine("Автоподключение уже выключено.");
+            return 0;
+        }
+
+        if (!IsAdministrator())
+            return RunElevated("germany-autostart-disable");
+
+        var serviceName = ServiceNameFor(profileName);
+        var serviceInstalled = QueryServiceState(profileName) != ServiceState.NotInstalled;
+        if (serviceInstalled)
+        {
+            var startup = RunSc("config", serviceName, "start=", "demand");
+            if (startup.ExitCode != 0)
+            {
+                Console.Error.WriteLine("Не удалось выключить автозапуск службы WireGuard.");
+                WriteProcessOutput(startup.Output);
+                return startup.ExitCode;
+            }
+
+            var recovery = RunSc("failure", serviceName, "reset=", "0", "actions=", "");
+            if (recovery.ExitCode != 0)
+            {
+                Console.Error.WriteLine("Не удалось отключить автоматическое восстановление службы WireGuard.");
+                WriteProcessOutput(recovery.Output);
+                RestoreAutoServiceMode(serviceName);
+                return recovery.ExitCode;
+            }
+        }
+
+        try
+        {
+            File.Delete(AutoStartProfilePath);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Console.Error.WriteLine("Не удалось удалить настройку автоподключения: " + ex.GetBaseException().Message);
+            if (serviceInstalled)
+                RestoreAutoServiceMode(serviceName);
+            return 1;
+        }
+
+        Console.WriteLine("Автоподключение выключено. Туннель можно запускать вручную.");
         return 0;
     }
 
@@ -229,6 +386,18 @@ internal static class GermanyTunnel
 
     public static int Status()
     {
+        string? autoStartProfile;
+        try
+        {
+            autoStartProfile = ReadAutoStartProfile();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+        {
+            Console.Error.WriteLine("Не удалось прочитать настройку автоподключения: " + ex.GetBaseException().Message);
+            return 1;
+        }
+
+        Console.WriteLine("Автоподключение: " + (autoStartProfile ?? "выключено"));
         var profiles = GetProfileNames();
         if (profiles.Count == 0)
         {
@@ -250,7 +419,10 @@ internal static class GermanyTunnel
                 ServiceState.NotInstalled => "ещё не установлен",
                 _ => "состояние неизвестно"
             };
-            Console.WriteLine("  " + profileName + marker + ": " + label);
+            var autoStart = string.Equals(profileName, autoStartProfile, StringComparison.OrdinalIgnoreCase)
+                ? ", автозапуск включён"
+                : string.Empty;
+            Console.WriteLine("  " + profileName + marker + ": " + label + autoStart);
         }
         Console.WriteLine("Статус службы не подтверждает handshake или страну выхода.");
         return 0;
@@ -337,11 +509,30 @@ internal static class GermanyTunnel
             return;
         }
 
+        string? autoStartProfile;
+        try
+        {
+            autoStartProfile = ReadAutoStartProfile();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+        {
+            Console.Error.WriteLine("Не удалось прочитать настройку автоподключения: " + ex.GetBaseException().Message);
+            return;
+        }
+
+        var selectedProfile = profiles[selection - 1];
+        if (autoStartProfile is not null &&
+            !string.Equals(autoStartProfile, selectedProfile, StringComparison.OrdinalIgnoreCase))
+        {
+            Console.WriteLine("Сначала выключите автоподключение старого профиля, затем выберите другой.");
+            return;
+        }
+
         try
         {
             Directory.CreateDirectory(ConfigDirectory);
-            File.WriteAllText(ActiveProfilePath, profiles[selection - 1], new UTF8Encoding(false));
-            Console.WriteLine("Выбран профиль " + profiles[selection - 1] + ".");
+            File.WriteAllText(ActiveProfilePath, selectedProfile, new UTF8Encoding(false));
+            Console.WriteLine("Выбран профиль " + selectedProfile + ".");
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -382,6 +573,62 @@ internal static class GermanyTunnel
         if (profiles.Contains(DefaultProfileName, StringComparer.OrdinalIgnoreCase))
             return DefaultProfileName;
         return profiles.FirstOrDefault();
+    }
+
+    private static string? ReadAutoStartProfile()
+    {
+        if (!File.Exists(AutoStartProfilePath))
+            return null;
+
+        var profileName = File.ReadAllText(AutoStartProfilePath).Trim();
+        if (!IsValidProfileName(profileName))
+            throw new InvalidDataException("Сохранённое имя профиля автоподключения повреждено.");
+        return profileName;
+    }
+
+    private static void RestoreManualServiceMode(string serviceName)
+    {
+        var recovery = RunSc("failure", serviceName, "reset=", "0", "actions=", "");
+        if (recovery.ExitCode != 0)
+        {
+            Console.Error.WriteLine("Не удалось отменить настройки восстановления службы.");
+            WriteProcessOutput(recovery.Output);
+        }
+
+        var startup = RunSc("config", serviceName, "start=", "demand");
+        if (startup.ExitCode != 0)
+        {
+            Console.Error.WriteLine("Не удалось вернуть ручной запуск службы WireGuard.");
+            WriteProcessOutput(startup.Output);
+        }
+    }
+
+    private static void RestoreAutoServiceMode(string serviceName)
+    {
+        var startup = RunSc("config", serviceName, "start=", "auto");
+        if (startup.ExitCode != 0)
+        {
+            Console.Error.WriteLine("Не удалось восстановить автозапуск службы WireGuard.");
+            WriteProcessOutput(startup.Output);
+        }
+
+        var recovery = RunSc("failure", serviceName, "reset=", "86400", "actions=", "restart/5000/restart/15000/restart/60000");
+        if (recovery.ExitCode != 0)
+        {
+            Console.Error.WriteLine("Не удалось восстановить автоматическое восстановление службы WireGuard.");
+            WriteProcessOutput(recovery.Output);
+        }
+    }
+
+    private static int ConfigureStartupMode(string serviceName, string startupMode)
+    {
+        var startup = RunSc("config", serviceName, "start=", startupMode);
+        if (startup.ExitCode != 0)
+        {
+            Console.Error.WriteLine("Не удалось настроить запуск службы туннеля Windows.");
+            WriteProcessOutput(startup.Output);
+        }
+        return startup.ExitCode;
     }
 
     private static bool AnyTunnelRunning() =>
