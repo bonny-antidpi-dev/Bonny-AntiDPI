@@ -14,8 +14,9 @@ var tests = new (string Name, Action Run)[]
     ("TLS ClientHello without SNI remains untouched", NoSni),
     ("Packet parser reads exact packets from a shared receive buffer", ParseSharedReceiveBuffer),
     ("Domain policy matches roots and subdomains only", DomainPolicyMatches),
-    ("Configured policy covers the six requested services", ConfiguredServiceDomains),
+    ("Configured policy covers the seven configured services", ConfiguredServiceDomains),
     ("Discord web and CDN hostnames are covered by TCP domain policy", DiscordDomainCoverage),
+    ("Spotify web, API, and CDN domains are covered by TCP domain policy", SpotifyDomainCoverage),
     ("IPv4 TCP split preserves stream and checksums", SplitIpv4),
     ("IPv6 TCP split preserves stream and checksum", SplitIpv6),
     ("IPv6 Hop-by-Hop and Destination options preserve split checksums", SplitIpv6WithOptions),
@@ -182,6 +183,8 @@ static void ConfiguredServiceDomains()
         "tiktok.com", "www.tiktok.com",
         "soundcloud.com", "api-v2.soundcloud.com",
         "sndcdn.com", "cf-media.sndcdn.com",
+        "spotify.com", "api.spotify.com", "open.spotify.com", "accounts.spotify.com",
+        "spotify.net", "spotifycdn.com", "spotifycdn.net", "p.scdn.co",
         "meduza.io", "currenttime.tv", "ovdinfo.org", "bbc.com"
     })
         True(policy.Includes(host), "configured service hostname " + host);
@@ -208,6 +211,25 @@ static void DiscordDomainCoverage()
         True(policy.Includes(host), "Discord TCP/TLS hostname " + host);
 
     True(!policy.Includes("discord.com.example.org"), "lookalike Discord hostname");
+}
+
+static void SpotifyDomainCoverage()
+{
+    var policy = DomainPolicy.Load(Path.Combine(AppContext.BaseDirectory, "domains.txt"));
+    foreach (var host in new[]
+    {
+        "spotify.com",
+        "api.spotify.com",
+        "open.spotify.com",
+        "accounts.spotify.com",
+        "spotify.net",
+        "spotifycdn.com",
+        "spotifycdn.net",
+        "p.scdn.co"
+    })
+        True(policy.Includes(host), "Spotify TCP/TLS hostname " + host);
+
+    True(!policy.Includes("spotify.com.example.org"), "lookalike Spotify hostname");
 }
 
 static void SplitIpv4()

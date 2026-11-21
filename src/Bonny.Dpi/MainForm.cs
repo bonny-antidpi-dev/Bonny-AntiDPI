@@ -99,7 +99,7 @@ internal sealed class MainForm : Form
         var limits = new Label
         {
             Text = "Bonny DPI обрабатывает TCP/443. QUIC, голос Discord и игровые UDP-пакеты идут через WireGuard, когда полный туннель подключён.\n" +
-                   "«Проверить сеть» делает DNS/TCP/TLS-проверку шести сервисов; она не подтверждает обход DPI.",
+                   "«Проверить сеть» делает DNS/TCP/TLS-проверку семи сервисов; она не подтверждает обход DPI.",
             AutoSize = true,
             ForeColor = Color.FromArgb(177, 188, 203),
             Location = new Point(28, 205)
@@ -254,7 +254,7 @@ internal sealed class MainForm : Form
     private async Task RunDiagnosticsAsync()
     {
         _networkButton.Enabled = false;
-        AddLog("Сетевая диагностика: проверяю DNS, TCP/443 и TLS для шести сервисов.");
+        AddLog("Сетевая диагностика: проверяю DNS, TCP/443 и TLS для семи сервисов.");
         try
         {
             var results = await NetworkDiagnostics.RunAsync();

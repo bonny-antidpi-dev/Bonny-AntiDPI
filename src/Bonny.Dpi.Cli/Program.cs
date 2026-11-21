@@ -54,7 +54,7 @@ internal static class BonnyCli
             Console.WriteLine("  4. Открыть список доменов");
             Console.WriteLine("  5. Справка");
             Console.WriteLine("  6. Немецкий IP через WireGuard VPS");
-            Console.WriteLine("  7. Диагностика сети для шести сервисов");
+            Console.WriteLine("  7. Диагностика сети для семи сервисов");
             Console.WriteLine("  8. Блокировщик рекламы для Firefox");
             Console.WriteLine("  9. Обновить список заблокированных СМИ");
             Console.WriteLine("  0. Выход");
@@ -472,7 +472,7 @@ internal static class BonnyCli
         Console.WriteLine("  start  Run-Bonny.cmd запросит права администратора, проверит компоненты и запустит обработчик.");
         Console.WriteLine("  setup  Скачать и проверить официальные файлы WinDivert.");
         Console.WriteLine("  check  Проверить список доменов и файлы WinDivert.");
-        Console.WriteLine("  diagnose Проверить DNS, TCP/443 и TLS для шести сервисов.");
+        Console.WriteLine("  diagnose Проверить DNS, TCP/443 и TLS для семи сервисов.");
         Console.WriteLine("  adblock  Открыть страницу uBlock Origin для Firefox.");
         Console.WriteLine("  update-media-sites Обновить домены из списка заблокированных СМИ в Википедии.");
         Console.WriteLine("  germany Открыть настройки немецкого WireGuard-туннеля.");
@@ -510,7 +510,7 @@ internal static class BonnyCli
     private static async Task<int> RunNetworkDiagnosticsAsync()
     {
         Console.WriteLine("Проверяю DNS, TCP/443 и TLS до основных доменов сервисов.");
-        Console.WriteLine("Проверяю Discord, Telegram, YouTube, Roblox, TikTok и SoundCloud.");
+        Console.WriteLine("Проверяю Discord, Telegram, YouTube, Roblox, TikTok, SoundCloud и Spotify.");
         Console.WriteLine("Проверка использует текущие системные маршруты, включая активный WireGuard-туннель.");
         IReadOnlyList<NetworkDiagnosticResult> results;
         try

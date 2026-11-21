@@ -23,7 +23,8 @@ public static class NetworkDiagnostics
         ("YouTube", "youtube.com"),
         ("Roblox", "roblox.com"),
         ("TikTok", "tiktok.com"),
-        ("SoundCloud", "soundcloud.com")
+        ("SoundCloud", "soundcloud.com"),
+        ("Spotify", "spotify.com")
     ];
 
     public static async Task<IReadOnlyList<NetworkDiagnosticResult>> RunAsync(

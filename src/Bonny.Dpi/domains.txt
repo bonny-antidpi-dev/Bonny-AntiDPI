@@ -27,6 +27,12 @@ byteoversea.com
 # SoundCloud
 soundcloud.com
 sndcdn.com
+# Spotify web/API/CDN over TCP/TLS.
+spotify.com
+spotify.net
+spotifycdn.com
+spotifycdn.net
+scdn.co
 # BEGIN Bonny managed blocked-media domains
 24.kg
 7dniv.rv.ua

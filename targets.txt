@@ -10,3 +10,8 @@ roblox.com
 rbxcdn.com
 www.tiktok.com
 tiktokcdn.com
+spotify.com
+spotify.net
+spotifycdn.com
+spotifycdn.net
+scdn.co
