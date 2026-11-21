@@ -11,9 +11,10 @@ internal static class BonnyCli
     public static async Task<int> RunAsync(string[] args)
     {
         var command = args.Length == 0 ? "menu" : args[0].ToLowerInvariant();
-        if (args.Length > 1)
+        var maximumArguments = command == "germany-setup" ? 2 : 1;
+        if (args.Length > maximumArguments)
         {
-            Console.Error.WriteLine("Команда принимает только один аргумент.");
+            Console.Error.WriteLine("У команды неверное количество аргументов.");
             PrintHelp();
             return 2;
         }
@@ -27,6 +28,7 @@ internal static class BonnyCli
             "start" => await StartAsync(),
             "update-media-sites" => await BlockedMediaListUpdater.UpdateAsync(DomainPolicy.FindListPath(AppContext.BaseDirectory)),
             "germany" => GermanyTunnel.RunMenu(),
+            "germany-setup" => GermanyTunnel.SetupAndConnect(args.Length == 2 ? args[1] : null),
             "germany-connect" => GermanyTunnel.Connect(),
             "germany-reconnect" => GermanyTunnel.Reconnect(),
             "germany-disconnect" => GermanyTunnel.Disconnect(),
@@ -469,7 +471,7 @@ internal static class BonnyCli
     {
         Console.WriteLine("Bonny DPI — управление из командной строки");
         Console.WriteLine();
-        Console.WriteLine("Использование: Run-Bonny.cmd [menu|start|setup|check|diagnose|adblock|update-media-sites|germany|germany-connect|germany-reconnect|germany-disconnect|germany-status|germany-autostart-enable|germany-autostart-disable|help]");
+        Console.WriteLine("Использование: Run-Bonny.cmd [menu|start|setup|check|diagnose|adblock|update-media-sites|germany|germany-setup [config-path]|germany-connect|germany-reconnect|germany-disconnect|germany-status|germany-autostart-enable|germany-autostart-disable|help]");
         Console.WriteLine("  menu   Открыть интерактивное меню CMD.");
         Console.WriteLine("  start  Run-Bonny.cmd запросит права администратора, проверит компоненты и запустит обработчик.");
         Console.WriteLine("  setup  Скачать и проверить официальные файлы WinDivert.");
@@ -478,6 +480,7 @@ internal static class BonnyCli
         Console.WriteLine("  adblock  Открыть страницу uBlock Origin для Firefox.");
         Console.WriteLine("  update-media-sites Обновить домены из списка заблокированных СМИ в Википедии.");
         Console.WriteLine("  germany Открыть настройки немецкого WireGuard-туннеля.");
+        Console.WriteLine("  germany-setup [config-path] Импортировать профиль WireGuard и сразу подключить его.");
         Console.WriteLine("  germany-reconnect Перезапустить выбранный профиль WireGuard.");
         Console.WriteLine("  germany-autostart-enable Включить автоподключение WireGuard при запуске Windows.");
         Console.WriteLine("  germany-autostart-disable Выключить автоподключение WireGuard.");

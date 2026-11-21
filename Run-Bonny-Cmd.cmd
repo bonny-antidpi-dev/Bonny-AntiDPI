@@ -12,6 +12,9 @@ if not exist "%APP%" (
 
 set "COMMAND=%~1"
 if not defined COMMAND set "COMMAND=menu"
+if /I "%COMMAND%"=="germany-setup" goto passthrough
+if /I "%COMMAND%"=="germany-autostart-enable" goto passthrough
+if /I "%COMMAND%"=="germany-autostart-disable" goto passthrough
 if not "%~2"=="" goto invalid_arguments
 if /I "%COMMAND%"=="menu" goto menu
 if /I "%COMMAND%"=="check" goto check_once
@@ -77,6 +80,10 @@ exit /b %ERRORLEVEL%
 
 :germany_status
 "%APP%" germany-status
+exit /b %ERRORLEVEL%
+
+:passthrough
+"%APP%" %*
 exit /b %ERRORLEVEL%
 
 :start

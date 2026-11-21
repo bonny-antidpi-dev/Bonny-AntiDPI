@@ -86,7 +86,7 @@ internal sealed class MainForm : Form
 
         var wireGuardButton = new Button
         {
-            Text = "WireGuard (CMD)",
+            Text = "Импорт .conf",
             Location = new Point(694, 145),
             Size = new Size(185, 42),
             FlatStyle = FlatStyle.Flat,
@@ -94,7 +94,7 @@ internal sealed class MainForm : Form
             ForeColor = Color.White
         };
         wireGuardButton.FlatAppearance.BorderSize = 0;
-        wireGuardButton.Click += (_, _) => OpenWireGuardMenu();
+        wireGuardButton.Click += (_, _) => OpenWireGuardSetupWizard();
 
         var limits = new Label
         {
@@ -284,8 +284,19 @@ internal sealed class MainForm : Form
         }
     }
 
-    private void OpenWireGuardMenu()
+    private void OpenWireGuardSetupWizard()
     {
+        using var dialog = new OpenFileDialog
+        {
+            Title = "Выберите клиентский WireGuard-конфиг с вашего VPS",
+            Filter = "WireGuard-конфиг (*.conf)|*.conf|Все файлы (*.*)|*.*",
+            DefaultExt = "conf",
+            CheckFileExists = true,
+            Multiselect = false
+        };
+        if (dialog.ShowDialog(this) != DialogResult.OK)
+            return;
+
         try
         {
             var executable = FindCliExecutable();
@@ -300,13 +311,14 @@ internal sealed class MainForm : Form
                 UseShellExecute = true,
                 WorkingDirectory = Path.GetDirectoryName(executable)!
             };
-            startInfo.ArgumentList.Add("germany");
+            startInfo.ArgumentList.Add("germany-setup");
+            startInfo.ArgumentList.Add(dialog.FileName);
             _ = Process.Start(startInfo);
-            AddLog("Открыто CMD-меню WireGuard: импорт, выбор профиля и переподключение.");
+            AddLog("Открыт мастер WireGuard. Укажите имя профиля в консоли и подтвердите UAC для подключения.");
         }
         catch (Exception ex)
         {
-            AddLog("Не удалось открыть меню WireGuard: " + ex.GetBaseException().Message);
+            AddLog("Не удалось запустить мастер WireGuard: " + ex.GetBaseException().Message);
         }
     }
 

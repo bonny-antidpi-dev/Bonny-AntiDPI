@@ -27,6 +27,7 @@ internal static class GermanyTunnel
             Console.WriteLine("  6. Проверить состояние");
             Console.WriteLine("  7. Включить автоподключение при запуске Windows");
             Console.WriteLine("  8. Выключить автоподключение");
+            Console.WriteLine("  9. Мастер: импортировать конфиг и подключиться");
             Console.WriteLine("  0. Назад");
             Console.Write("Выбор: ");
 
@@ -56,11 +57,14 @@ internal static class GermanyTunnel
                 case "8":
                     _ = DisableAutoStart();
                     break;
+                case "9":
+                    _ = SetupAndConnect();
+                    break;
                 case "0":
                 case null:
                     return 0;
                 default:
-                    Console.WriteLine("Выберите пункт 1, 2, 3, 4, 5, 6 или 0.");
+                    Console.WriteLine("Выберите пункт 1, 2, 3, 4, 5, 6, 7, 8, 9 или 0.");
                     break;
             }
         }
@@ -307,6 +311,16 @@ internal static class GermanyTunnel
         return 0;
     }
 
+    public static int SetupAndConnect(string? sourcePath = null)
+    {
+        Console.WriteLine("Мастер WireGuard: импорт профиля существующего VPS и подключение.");
+        if (!ImportConfig(sourcePath))
+            return 1;
+
+        Console.WriteLine("Профиль сохранён. Запускаю подключение WireGuard...");
+        return Connect();
+    }
+
     public static int Reconnect()
     {
         var profileName = GetActiveProfileName();
@@ -428,15 +442,20 @@ internal static class GermanyTunnel
         return 0;
     }
 
-    private static void ImportConfig()
+    private static bool ImportConfig(string? sourcePath = null)
     {
-        Console.WriteLine("Укажите путь к клиентскому .conf, созданному на вашем VPS.");
-        Console.Write("Файл: ");
-        var source = Console.ReadLine()?.Trim().Trim('"');
+        if (string.IsNullOrWhiteSpace(sourcePath))
+        {
+            Console.WriteLine("Укажите путь к клиентскому .conf, созданному на вашем VPS.");
+            Console.Write("Файл: ");
+            sourcePath = Console.ReadLine()?.Trim().Trim('"');
+        }
+
+        var source = sourcePath?.Trim().Trim('"');
         if (string.IsNullOrWhiteSpace(source) || !File.Exists(source))
         {
-            Console.WriteLine("Файл не найден.");
-            return;
+            Console.WriteLine("Файл конфигурации не найден.");
+            return false;
         }
 
         Console.Write("Имя профиля (латиница, цифры, дефис или подчёркивание; пусто = BonnyGermany): ");
@@ -446,20 +465,36 @@ internal static class GermanyTunnel
         if (!IsValidProfileName(profileName))
         {
             Console.WriteLine("Имя профиля должно содержать от 1 до 40 символов: A-Z, a-z, 0-9, _ или -.");
-            return;
+            return false;
         }
 
         if (AnyTunnelRunning())
         {
             Console.WriteLine("Сначала отключите активный профиль Bonny WireGuard, затем импортируйте другой.");
-            return;
+            return false;
+        }
+
+        string? autoStartProfile;
+        try
+        {
+            autoStartProfile = ReadAutoStartProfile();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+        {
+            Console.Error.WriteLine("Не удалось прочитать настройку автоподключения: " + ex.GetBaseException().Message);
+            return false;
+        }
+        if (autoStartProfile is not null)
+        {
+            Console.WriteLine("Перед импортом профиля выключите автоподключение.");
+            return false;
         }
 
         var configPath = GetConfigPath(profileName);
         if (File.Exists(configPath))
         {
             Console.WriteLine("Профиль с таким именем уже существует. Выберите другое имя; существующий ключ не будет перезаписан.");
-            return;
+            return false;
         }
 
         try
@@ -472,16 +507,18 @@ internal static class GermanyTunnel
             {
                 File.Delete(configPath);
                 Console.WriteLine("Не удалось ограничить доступ к профилю. Файл не сохранён.");
-                return;
+                return false;
             }
 
             File.WriteAllText(ActiveProfilePath, profileName, new UTF8Encoding(false));
             Console.WriteLine("Профиль " + profileName + " импортирован и выбран.");
             Console.WriteLine("Приватный ключ не выводился на экран и не добавляется в проект.");
+            return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
         {
             Console.WriteLine("Не удалось импортировать профиль: " + ex.GetBaseException().Message);
+            return false;
         }
     }
 
