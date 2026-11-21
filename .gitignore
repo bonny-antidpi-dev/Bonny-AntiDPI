@@ -1,0 +1,29 @@
+# Local SDK and IDE files
+.tools/
+.vs/
+.idea/
+*.suo
+*.user
+
+# .NET build outputs
+**/bin/
+**/obj/
+**/publish/
+artifacts/
+TestResults/
+/_verify/
+
+# Packaged portable distribution (publish separately as a GitHub Release)
+/Bonny AntiDPI Portable/
+
+# Local VPN profiles and credentials
+*.conf
+*.key
+*.pem
+*.pfx
+*.p12
+!*.example.conf
+secrets/
+.env
+.env.*
+!.env.example

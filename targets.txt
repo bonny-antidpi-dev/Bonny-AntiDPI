@@ -1,0 +1,12 @@
+# Домены для первичной проверки DNS/TLS и ввода в blockcheck.
+# blockcheck проверяет сетевые стратегии; для голосовых/игровых UDP-соединений
+# нужна отдельная проверка внутри Discord или Roblox.
+discord.com
+discord.media
+api.telegram.org
+youtube.com
+googlevideo.com
+roblox.com
+rbxcdn.com
+www.tiktok.com
+tiktokcdn.com
